@@ -1,9 +1,6 @@
 # ================= IMPORT LIBRARIES =================
 import pandas as pd
 import numpy as np
-
-!pip install streamlit
-
 import streamlit as st
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -224,3 +221,4 @@ if file:
 
 else:
     st.warning("Please upload the dataset to continue.")
+
