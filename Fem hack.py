@@ -1,178 +1,15 @@
 # ================= IMPORT LIBRARIES =================
 import pandas as pd
 import numpy as np
-import streamlit as st
-#import matplotlib.pyplot as plt
-#import seaborn as sns
 
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, OneHotEncoder# ================= IMPORT LIBRARIES =================
-import pandas as pd
-import numpy as np
+!pip install streamlit
+
 import streamlit as st
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
-
-from sklearn.linear_model import LogisticRegression
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.svm import SVC
-from sklearn.neighbors import KNeighborsClassifier
-
-# ================= PAGE CONFIG =================
-st.set_page_config(page_title="AI Resume Screening", layout="wide")
-sns.set_style("whitegrid")
-st.title("📄 AI Resume Screening System")
-
-# ================= DATA UPLOAD =================
-file = st.file_uploader("Upload Resume Dataset (CSV)", type=["csv"])
-
-if file:
-    df = pd.read_csv(file)
-
-    # ================= SIDEBAR =================
-    menu = st.sidebar.selectbox(
-        "Navigation",
-        [
-            "Data Understanding & Cleaning",
-            "Basic Analysis",
-            "Univariate Analysis",
-            "Bivariate Analysis",
-            "Supervised Learning & Prediction",
-            "Final Insight"
-        ]
-    )
-
-    # ------------------- Data Understanding -------------------
-    if menu == "Data Understanding & Cleaning":
-        st.subheader("📌 Dataset Overview")
-        st.write("Shape:", df.shape)
-        st.dataframe(df.head())
-        st.subheader("❓ Missing Values")
-        st.write(df.isnull().sum())
-
-        st.subheader("📊 Numeric & Categorical Columns")
-        numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
-        categorical_cols = df.select_dtypes(include="object").columns.tolist()
-        st.write("Numeric Columns:", numeric_cols)
-        st.write("Categorical Columns:", categorical_cols)
-
-    # ------------------- Basic Analysis -------------------
-    elif menu == "Basic Analysis":
-        st.subheader("📊 Target Distribution")
-        target_col = "Recruiter Decision" if "Recruiter Decision" in df.columns else df.columns[-1]
-        fig, ax = plt.subplots(figsize=(4,3))
-        df[target_col].value_counts().plot(kind="bar", ax=ax)
-        ax.set_xlabel("Decision")
-        ax.set_ylabel("Count")
-        st.pyplot(fig)
-
-    # ------------------- Univariate Analysis -------------------
-    elif menu == "Univariate Analysis":
-        num_cols = df.select_dtypes(include=np.number).columns
-        cat_cols = df.select_dtypes(include="object").columns
-
-        st.subheader("📈 Numerical Features")
-        for col in num_cols:
-            fig, ax = plt.subplots(figsize=(4,3))
-            sns.histplot(df[col], kde=True, ax=ax)
-            st.pyplot(fig)
-
-        st.subheader("📊 Categorical Features")
-        for col in cat_cols:
-            fig, ax = plt.subplots(figsize=(4,3))
-            df[col].value_counts().plot(kind="bar", ax=ax)
-            st.pyplot(fig)
-
-    # ------------------- Bivariate Analysis -------------------
-    elif menu == "Bivariate Analysis":
-        target_col = "Recruiter Decision" if "Recruiter Decision" in df.columns else df.columns[-1]
-        st.subheader("📉 Features vs Target")
-        for col in df.columns:
-            if col != target_col and col in df.select_dtypes(include=np.number).columns:
-                fig, ax = plt.subplots(figsize=(4,3))
-                sns.boxplot(x=target_col, y=col, data=df, ax=ax)
-                st.pyplot(fig)
-
-        st.subheader("🔗 Correlation Heatmap")
-        fig, ax = plt.subplots(figsize=(5,4))
-        sns.heatmap(df.select_dtypes(include=np.number).corr(), annot=True, ax=ax)
-        st.pyplot(fig)
-
-    # ------------------- Supervised Learning -------------------
-    elif menu == "Supervised Learning & Prediction":
-        st.subheader("🤖 Model Training & Evaluation")
-        target_col = "Recruiter Decision" if "Recruiter Decision" in df.columns else df.columns[-1]
-        X = df.drop(columns=target_col)
-        y = df[target_col]
-
-        num_cols = X.select_dtypes(include=np.number).columns
-        cat_cols = X.select_dtypes(include="object").columns
-
-        preprocessor = ColumnTransformer([
-            ("num", StandardScaler(), num_cols),
-            ("cat", OneHotEncoder(handle_unknown="ignore"), cat_cols)
-        ])
-
-        models = {
-            "Logistic Regression": LogisticRegression(max_iter=1000),
-            "Decision Tree": DecisionTreeClassifier(),
-            "Random Forest": RandomForestClassifier(),
-            "SVM": SVC(),
-            "KNN": KNeighborsClassifier()
-        }
-
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-        results = []
-        for name, model in models.items():
-            pipe = Pipeline([("prep", preprocessor), ("model", model)])
-            pipe.fit(X_train, y_train)
-            pred = pipe.predict(X_test)
-            results.append({
-                "Model": name,
-                "Accuracy": accuracy_score(y_test, pred),
-                "Precision": precision_score(y_test, pred, average="weighted"),
-                "Recall": recall_score(y_test, pred, average="weighted"),
-                "F1 Score": f1_score(y_test, pred, average="weighted")
-            })
-
-        st.subheader("📋 Model Comparison")
-        st.dataframe(pd.DataFrame(results))
-
-        st.subheader("🔮 Predict New Sample")
-        user = {}
-        for col in X.columns:
-            if col in num_cols:
-                user[col] = st.number_input(col, float(df[col].min()), float(df[col].max()))
-            else:
-                user[col] = st.selectbox(col, df[col].unique())
-
-        if st.button("Predict"):
-            best_model = Pipeline([("prep", preprocessor), ("model", RandomForestClassifier())])
-            best_model.fit(X_train, y_train)
-            result = best_model.predict(pd.DataFrame([user]))
-            st.success(f"Prediction Result: {result[0]}")
-
-    # ------------------- Final Insight -------------------
-    else:
-        st.subheader("🌍 Real-World Impact")
-        st.markdown("""
-- Automates resume screening
-- Reduces bias
-- Saves recruiter time
-- Improves hiring accuracy
-- Scales efficiently using AI
-""")
-
-else:
-    st.warning("Please upload the dataset to continue.")
-
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
@@ -387,6 +224,3 @@ if file:
 
 else:
     st.warning("Please upload the dataset to continue.")
-
-
-
